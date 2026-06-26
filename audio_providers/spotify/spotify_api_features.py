@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # spotify/extract_spotify_features.py
 

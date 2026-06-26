@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # dev_tools/waveform_tools.py
 

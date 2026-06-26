@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/analysis_output/plot_waveform.py
 

@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/midi/pretty_midi_parser.py
 

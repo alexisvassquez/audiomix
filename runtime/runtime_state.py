@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # runtime/runtime_state.py
 

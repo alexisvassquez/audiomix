@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # performance_engine/modules/sampler.py
 

@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio_provieders/spotify/spotify_registry.py
 

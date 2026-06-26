@@ -1,3 +1,2 @@
-# audiomix
 # AudioMIX
-# api/
+# api/main.py

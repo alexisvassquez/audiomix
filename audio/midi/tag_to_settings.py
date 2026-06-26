@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/midi/tag_to_settings.py
 

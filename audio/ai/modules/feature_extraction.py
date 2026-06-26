@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/modules/feature_extraction.py
 

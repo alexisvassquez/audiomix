@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio_providers/spotify/spotify_adapter.py
 

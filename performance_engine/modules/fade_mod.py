@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # performance_engine/modules/fade_mod.py
 

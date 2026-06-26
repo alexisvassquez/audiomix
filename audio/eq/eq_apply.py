@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/eq/eq_apply.py
 

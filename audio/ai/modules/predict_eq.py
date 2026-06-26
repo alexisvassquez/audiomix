@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/modules/predict_eq.py
 

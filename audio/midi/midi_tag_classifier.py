@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/midi/midi_tag_classifier.py
 

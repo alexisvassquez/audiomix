@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/eq/eq_send_preset.py
 

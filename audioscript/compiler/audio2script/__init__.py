@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/audio2script/__init__.py
 

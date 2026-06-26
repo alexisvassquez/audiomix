@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/training/schemas.py
 

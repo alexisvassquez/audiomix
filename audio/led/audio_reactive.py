@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/led/audio_reactive.py
 

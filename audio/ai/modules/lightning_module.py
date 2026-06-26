@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/modules/lightning_module.py
 

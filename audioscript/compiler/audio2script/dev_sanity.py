@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audioscript/compiler/audio2script/dev_sanity.py
 

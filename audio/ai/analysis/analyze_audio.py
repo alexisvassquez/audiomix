@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/analyze_audio.py
 

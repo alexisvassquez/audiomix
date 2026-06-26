@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # performance_engine/modules/led_controller.py
 

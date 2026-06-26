@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # version.py
 from pathlib import Path

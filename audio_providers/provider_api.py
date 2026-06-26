@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio_providers/provider_api.py
 

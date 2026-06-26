@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/midi/extract_midi_features.py
 

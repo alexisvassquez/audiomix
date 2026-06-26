@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # performance_engine/utils/shell_output.py
 

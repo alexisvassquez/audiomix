@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/planners/lighting_orchestrator.py
 

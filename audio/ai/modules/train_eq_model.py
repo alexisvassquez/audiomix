@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/modules/train_eq_model.py
 

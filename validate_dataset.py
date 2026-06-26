@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-# audiomix
 # AudioMIX
 # Validates AudioMIX_metadata.csv and labels.jsonl consistency
 

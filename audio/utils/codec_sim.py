@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/utils/codec_sim.py
 

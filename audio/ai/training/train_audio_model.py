@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/ai/train_audio_model.py
 

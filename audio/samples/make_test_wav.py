@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/samples/make_test_wav.py
 

@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # api/bridge.py
 #

@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # spotify/diagnostic.py
 

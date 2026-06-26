@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audioscript/compiler/audio2script/event_mapper.py
 

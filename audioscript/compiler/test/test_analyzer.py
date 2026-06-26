@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audioscript/compiler/test/test_analyzer.py
 

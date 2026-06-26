@@ -1,4 +1,3 @@
-# audiomix
 # AudioMIX
 # audio/eq/predict_and_apply_eq.py
 
