@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # PyTorch stack must be updated together manually
+      # using the official compatibility matrix:
+      # https://pytorch.org/get-started/previous-versions/
+      - dependency-name: "torch"
+      - dependency-name: "torchaudio"
+      - dependency-name: "torchvision"
