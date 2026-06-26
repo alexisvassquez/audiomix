@@ -174,6 +174,10 @@ class AudioMIXBridge:
         
         logger.debug(f"Sending command [{request.branch}]: {command}")
 
+        assert self._runtime_process is not None
+        assert self._runtime_process.stdin is not None
+        assert self._runtime_process.stdout is not None
+
         try:
             # Write command to runtime stdin
             self._runtime_process.stdin.write(
@@ -217,3 +221,191 @@ class AudioMIXBridge:
                 command=command,
                 error=str(e)
             )
+    
+    # Transport
+    async def handle_transport(
+        self,
+        request: TransportRequest,
+    ) -> TransportResponse:
+        """
+        Handles a transport action from the Electron UI.
+        Updates SessionState and notifies WebSocket clients.
+        
+        Args:
+            request: TransportRequest w/ action and optional BPM
+        
+        Returns:
+            TransportResponse w/ updated session state
+        """
+        action = request.action
+
+        if action == TransportAction.PLAY:
+            self._session.is_playing = True
+            self._session.is_recording = False
+            self._session.last_event = "transport:play"
+            logger.info("Transport: PLAY")
+
+        elif action == TransportAction.PAUSE:
+            self._session.is_playing = False
+            self._session.last_event = "transport:pause"
+            logger.info("Transport: PAUSE")
+        
+        elif action == TransportAction.STOP:
+            self._session.is_playing = False
+            self._session.is_recording = False
+            self._session.playback_position = 0.0
+            self._session.playhead_bar = 0.0
+            self._session.last_event = "transport:stop"
+            logger.info("Transport: STOP")
+
+        elif action == TransportAction.RECORD:
+            self._session.is_recording = not self._session.is_recording
+            self._session.last_event = "transport:record"
+            logger.info(f"Transport: RECORD {'ON' if self._session.is_recording else 'OFF'}")
+        
+        # Update BPM if provided
+        if request.bpm is not None:
+            self._session.bpm = request.bpm
+            logger.info(f"Transport: BPM set to {request.bpm}")
+        
+        await self._notify_clients()
+
+        return TransportResponse(
+            success=True,
+            action=action,
+            session=self._get_session_model(),
+        )
+    
+    # Session State
+    def get_session_state(self) -> SessionStateModel:
+        """
+        Return current session state as a Pydantic model.
+        Called by GET /session route.
+        """
+        return self._get_session_model()
+    
+    def _get_session_model(self) -> SessionStateModel:
+        """
+        Convert internal SessionState dataclass to Pydantic model
+        for serialization.
+        Private - use get_session_state() externally.
+        """
+        return SessionStateModel(
+            is_playing = self._session.is_playing,
+            is_recording = self._session.is_recording,
+            playback_position = self._session.playback_position,
+            playhead_bar = self._session.playhead_bar,
+            project_name = self._session.project_name,
+            scene_name = self._session.scene_name,
+            current_track = self._session.current_track,
+            bpm = self._session.bpm,
+            key = self._session.key,
+            mood = self._session.mood,
+            time_signature = self._session.time_signature,
+            active_script = self._session.active_script,
+            audioscript_branch = AudioScriptBranch(self._session.audioscript_branch),
+            last_as_command = self._session.last_as_command,
+            last_as_result = self._session.last_as_result,
+            gain = self._session.gain,
+            pan = self._session.pan,
+            reverb_mix = self._session.reverb_mix,
+            compressor_ratio = self._session.compressor_ratio,
+            delay_ms = self._session.delay_ms,
+            sample_rate = self._session.sample_rate,
+            buffer_size = self._session.buffer_size,
+            latency_ms = self._session.latency_ms,
+            cpu_percent = self._session.cpu_percent,
+            last_event = self._session.last_event,
+            last_error = self._session.last_error,
+        )
+    
+    # WebSocket Clients
+    def register_ws_client(
+        self,
+        callback: Callable[[str], Awaitable[None]]
+    ) -> None:
+        """
+        Register a WebSocket client callback.
+        Called when Electron client connects to WS /shell.
+        The callback receives a JSON string to send to the client.
+        """
+        self._ws_callbacks.append(callback)
+        logger.info(f"WS client registered - {len(self._ws_callbacks)} total")
+    
+    def unregister_ws_client(
+        self,
+        callback: Callable[[str], Awaitable[None]]
+    ) -> None:
+        """
+        Unregister a WebSocket client callback.
+        Called when an Electron client disconnects from WS /shell
+        """
+        if callback in self._ws_callbacks:
+            self._ws_callbacks.remove(callback)
+        logger.info(f"WS client unregistered - {len(self._ws_callbacks)} remaining")
+
+    async def _notify_clients(self) -> None:
+        """
+        Push current session state to all connected WebSocket clients.
+        Called after every state-changing operation.
+        """
+        if not self._ws_callbacks:
+            return
+        
+        # lazy import
+        from api.models import WSMessage, WSMessageType
+        import json
+
+        message = WSMessage(
+            type=WSMessageType.SESSION_UPDATE,
+            payload=self._get_session_model().model_dump(),
+        )
+        message_json = message.model_dump_json()
+
+        # Fire all callbacks concurrently
+        results = await asyncio.gather(
+            *[cb(message_json) for cb in self._ws_callbacks],
+            return_exceptions=True
+        )
+
+        # Clean up any dead callbacks
+        dead = [
+            cb for cb, result in zip(self._ws_callbacks, results)
+            if isinstance(result, Exception)
+        ]
+        for cb in dead:
+            self.unregister_ws_client(cb)
+
+    # Runtime Output Reader
+    async def _read_runtime_output(self) -> None:
+        """
+        Background task that continuously reads stdout from the
+        AudioScript (AS) runtime process and logs it.
+        Runs until the bridge shuts down.
+        """
+        if not self._runtime_process:
+            return
+    
+        logger.info("Runtime output reader started")
+
+        assert self._runtime_process is not None
+        assert self._runtime_process.stdout is not None
+        
+        while self._running:
+            try:
+                line = await self._runtime_process.stdout.readline()
+                if not line:
+                    break
+                decoded = line.decode().strip()
+                if decoded:
+                    logger.debug(f"[runtime] {decoded}")
+            except Exception as e:
+                logger.error(f"Runtime output reader error: {e}")
+                break
+        
+        logger.info("Runtime output reader stopped")
+
+# Singleton
+# One bridge instance shared across the entire FastAPI application
+# Imported by routes, never instantiated directly in route handlers.
+bridge = AudioMIXBridge(project_name="OOEPUI_NIGHT_01")
