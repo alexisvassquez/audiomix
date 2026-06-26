@@ -14,7 +14,7 @@
 
 **AudioMIX** is an open-source DAW and live-performance engine for independent artists and developer-musicians. It combines a real-time **C++ DSP** stack, an AI creative layer (**Juniper2.0**), and **AudioScript** — a domain-specific language for controlling audio, mood, lighting, and show logic in code.
 
-This repository is called AudioMIX and is the **core engine**. (`ai_spotibot_player`) was the original name. The desktop UI lives in a separate repo: [AudioMIX-Electron](https://github.com/alexisvassquez/audiomix-electron).
+This repository is the **core engine**. The desktop UI lives in a separate repo: [AudioMIX-Electron](https://github.com/alexisvassquez/audiomix-electron).
 
 ---
 
@@ -40,7 +40,7 @@ This repository is called AudioMIX and is the **core engine**. (`ai_spotibot_pla
 Most DAWs are built for the studio. Most live-coding tools are not built for performers. AudioMIX bridges that gap.
 
 | You are… | AudioMIX gives you… |
-|----------|---------------------|
+| ---------- | --------------------- |
 | **Producer** | DSP, mood/ML analysis, EQ tooling, and AI-assisted production workflows |
 | **Live performer** | AudioScript to script audio, lighting, and transitions in real time |
 | **Developer-musician** | Modular Python/C++ extension points, a compiler pipeline, and an event-driven runtime |
@@ -61,8 +61,8 @@ Optional: run `./install.sh` on Debian/Ubuntu for system packages and a local `a
 ### Install and build
 
 ```bash
-git clone https://github.com/alexisvassquez/ai_spotibot_player.git
-cd ai_spotibot_player
+git clone https://github.com/alexisvassquez/audiomix.git
+cd audiomix
 
 python3 -m venv amenv && source amenv/bin/activate
 pip install -r requirements.txt
@@ -94,7 +94,7 @@ python audioscript_runtime.py path/to/show.as
 Useful flags:
 
 | Flag | Effect |
-|------|--------|
+| ------ | -------- |
 | `--safe` | Restrict loaded modules; no hardware/audio side effects |
 | `--no-dsp` | Skip launching the C++ `audiomix` binary |
 | `--debug` | Verbose module loading |
@@ -134,7 +134,7 @@ AudioMIX is organized around two creative modes:
 
 **Runtime data flow (simplified):**
 
-```
+```bash
 AudioScript shell  →  command modules  →  EventBus  →  DSPBridge (NDJSON)  →  C++ audiomix
                               ↓
                         audio/ai, LED, providers
@@ -149,7 +149,7 @@ Full directory snapshot: [`docs/AudioMIX_project_tree.txt`](docs/AudioMIX_projec
 ## Project layout
 
 | Path | Purpose |
-|------|---------|
+| ------ | --------- |
 | [`audio/dsp/`](audio/dsp/) | C++ real-time DSP modules and tests |
 | [`audio/ai/`](audio/ai/) | ML inference, feature extraction, datasets, planners |
 | [`audio/eq/`](audio/eq/) | EQ engine, presets, live streaming |
@@ -230,7 +230,7 @@ Companion desktop UI for the core engine — Electron shell with DAW-style panel
 
 | Layer | Repository |
 |-------|------------|
-| Core engine | [ai_spotibot_player](https://github.com/alexisvassquez/ai_spotibot_player) (this repo) |
+| Core engine | [audiomix](https://github.com/alexisvassquez/audiomix) (this repo) |
 | Desktop UI | [audiomix-electron](https://github.com/alexisvassquez/audiomix-electron) |
 
 ```bash
@@ -260,7 +260,7 @@ Key dependencies (full list in [`requirements.txt`](requirements.txt)):
 After `cmake --build build`:
 
 | Target | Role |
-|--------|------|
+| -------- | ------ |
 | `audiomix` | Main DSP binary (used by `DSPBridge`) |
 | `test_sine_dsp` | Sanity check tone generator |
 | `test_clipper` | Clipper module test |
