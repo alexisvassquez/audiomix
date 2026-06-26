@@ -33,7 +33,7 @@ joblib
 
 # --- Data + Config ---
 pandas
-pyyaml>=6.0
+pyyaml>=6.0.3
 tqdm
 
 # --- Testing ---
@@ -45,7 +45,7 @@ rich                 # Colorful logging, pretty tracebacks
 pytest               # Testing framework
 
 # --- API / WebSocket ---
-fastapi>=0.110.0
-uvicorn[standard]>=0.29.0
-websockets>=16.0
-pydantic>=2.0.0
+fastapi>=0.138.1
+uvicorn[standard]>=0.49.0
+websockets>=12.0
+pydantic>=2.13.4
