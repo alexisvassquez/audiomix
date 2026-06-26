@@ -46,6 +46,6 @@ pytest               # Testing framework
 
 # --- API / WebSocket ---
 fastapi>=0.138.1
-uvicorn[standard]>=0.29.0
+uvicorn[standard]>=0.49.0
 websockets>=12.0
 pydantic>=2.13.4
