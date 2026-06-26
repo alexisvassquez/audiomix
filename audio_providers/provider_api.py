@@ -1,4 +1,4 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # audio_providers/provider_api.py
 

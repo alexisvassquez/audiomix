@@ -1,4 +1,4 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # performance_engine/modules/mixer_panel.py
 

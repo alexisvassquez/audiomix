@@ -1,4 +1,4 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # audio/ai/analysis/features_summary.py
 

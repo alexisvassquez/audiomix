@@ -1,4 +1,4 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # audio/ai/analysis/inference_engine.py
 

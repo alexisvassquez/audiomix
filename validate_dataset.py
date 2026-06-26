@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # Validates AudioMIX_metadata.csv and labels.jsonl consistency
 

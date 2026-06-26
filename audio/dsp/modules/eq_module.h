@@ -1,4 +1,4 @@
-// ai_spotibot_player
+// audiomix
 // AudioMIX
 // audio/dsp/modules/eq_module.h
 //

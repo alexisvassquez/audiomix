@@ -1,3 +1,3 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # api/

@@ -1,4 +1,4 @@
-// ai_spotibot_player
+// audiomix
 // AudioMIX
 // audio/dsp/tests/test_sine_dsp.cpp
 //

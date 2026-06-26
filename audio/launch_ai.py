@@ -1,6 +1,6 @@
 import subprocess
 
-file_path = "/home/wholesomedegenerate/ai_spotibot_player/audio/samples/ilariio_soft-chill-vibes.mp3"
+file_path = "/home/wholesomedegenerate/audiomix/audio/samples/ilariio_soft-chill-vibes.mp3"
 print ("Spotibot Analyzing: {file_path}")
 
 result = subprocess.run(

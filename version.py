@@ -1,4 +1,4 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # version.py
 from pathlib import Path
@@ -19,5 +19,5 @@ _release_date__ = "{date}"
 '''
 
 # Save to root
-version_path = Path("/home/wholesomedegenerate/ai_spotibot_player/version.py")
+version_path = Path("/home/wholesomedegenerate/audiomix/version.py")
 version_path.write_text(version_file.strip())

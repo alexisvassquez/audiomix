@@ -1,4 +1,4 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # audio/analysis_output/generate_audio_features.py
 
@@ -51,7 +51,7 @@ for filepath, labels in samples.items():
 # Save features and labels
 with open("data/audio_features.json", "w") as f:
     json.dump(features_output, f, indent=2)
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # audio/analysis_output/generate_audio_features.py
 

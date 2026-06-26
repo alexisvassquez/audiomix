@@ -1,4 +1,4 @@
-# ai_spotibot_player
+# audiomix
 # AudioMIX
 # audio_provider/bandcamp/bandcamp_embed.py
 
