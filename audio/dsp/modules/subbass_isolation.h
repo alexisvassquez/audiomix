@@ -162,7 +162,7 @@ public:
             float sr = r_lp_.process(r_hp_.process(inR[i]));
 
             sumL += sl * sl;
-            sumR += sr * sr;
+            sumR += static_cast<double>(sr) * sr;
         }
 
         float rmsL = (n > 0) ? std::sqrt(sumL / n) : 0.0f;
