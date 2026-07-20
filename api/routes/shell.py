@@ -13,6 +13,9 @@
 # Results are pushed back to WSMessage(type=shell_output)
 # Session state updates are pushed as WSMessage(type=session_update)
 
+import os
+import secrets
+
 import asyncio
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -51,6 +54,11 @@ async def shell_websocket(websocket: WebSocket) -> None:
     """
     Bidirectional WebSocket endpoint for the AudioScript shell.
     Connected by the Electron AS Shell panel on startup.
+
+    Auth: client must send a valid x-audiomix-token header during the
+    WebSocket handshake.
+    Unauthorized connections are rejected before accept()
+
     Message flow: 
         Client -> Server: WSMessage(type=ping)
         Server -> Client: WSMessage(type=pong)
@@ -61,6 +69,16 @@ async def shell_websocket(websocket: WebSocket) -> None:
     Transport changes / BPM changes / HAL device status changes all flow
     to the client automatically.
     """
+    # Token check before accept, reject unauthoized handshakes outright.
+    # API_TOKEN is guaranteed non-empty here since main.py raised at
+    # startup if missing.
+    expected_token = os.environ.get("AUDIOMIX_API_TOKEN", "")
+    provided_token = websocket.headers.get("x-audiomix-token", "")
+    if not secrets.compare_digest(provided_token, expected_token):
+        # custom close code for "unauthorized"
+        await websocket.close(code=4401)
+        return
+
     await websocket.accept()
     client_id = id(websocket)
     logger.info(f"WS /shell - client {client_id} connected")
