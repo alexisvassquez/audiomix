@@ -9,6 +9,53 @@ The AudioMIX Electron UI has its own separate changelog in the [AudioMIX Electro
 
 ---
 
+## [v0.8-dev] - 2026-07-25
+
+### Architecture
+
+- FastAPI bridge (`api/main.py`) is now a fully local-first, auth-required entrypoint. No dev-mode bypass exists — the server refuses to start at all if `AUDIOMIX_API_TOKEN` is unset, rather than silently running without auth. This was a deliberate choice: local-first (no cloud hosting, ever) does not mean auth-optional, since a shipped Windows/ Linux build still needs to defend against other processes on a user's own machine.
+- Formalized LIVE mode as pause/resume, not start/stop. Entering LIVE mode starts the AudioScript runtime subprocess only once; leaving LIVE mode leaves it running idle in the background rather than killing it, so re-entering later is instant with no state loss. STUDIO mode never needs the runtime running at all.
+- Confirmed the intended `enter_live_mode()`/`exit_live_mode()` split as a pure mechanism/policy boundary: the bridge only tracks whether the runtime is alive and routes commands to it; whether commands are allowed to be sent while paused is left to the Electron UI to enforce (e.g. disabling the shell input outside LIVE mode), not the bridge.
+
+### Added
+
+- `api/main.py` — new file. FastAPI entrypoint with:
+  - `lifespan` context manager (not the deprecated `@app.on_event`) to guarantee the AudioScript runtime subprocess is terminated on clean shutdown.
+  - CORS locked to the confirmed electron-vite dev origin (`localhost:5173` / `127.0.0.1:5173`) plus `file://` for the packaged app.
+  - `verify_token()` — per-router `Depends()` auth dependency using `secrets.compare_digest`, replacing an earlier global-middleware draft that silently ran with no auth at all if the token was unset.
+  - `/health` — deliberately left public (no `Depends`) so Electron can poll liveness on startup without needing a token first.
+- `AudioMIXBridge.enter_live_mode()` / `exit_live_mode()` in `api/bridge.py` — starts the runtime subprocess on first LIVE entry only; exit flips the session back to the IR branch without touching the subprocess.
+- `AudioMIXBridge._wait_for_runtime_ready()` — blocks start() until the runtime prints its own `"Welcome to AudioMIX"` banner, closing a race where an early command could receive leftover startup output instead of its own result.
+- `POST /shell/live/enter` and `POST /shell/live/exit` routes in `api/routes/shell.py` — token-protected via the existing router-level `Depends(verify_token)`.
+- WebSocket-specific token check in `shell.py`'s `/ws` route, since `Depends()` on `include_router` does not cover WebSocket handlers — unauthorized handshakes are now rejected before `accept()` with a custom `4401` close code.
+- `electron/shellBridge.js` — new file. Main-process-owned WebSocket client to `/shell/ws`, speaking the `WSMessage` envelope in both directions. Exponential backoff reconnect; sends `x-audiomix-token` as a handshake header.
+- `preload.cjs` — added shell key to the existing `exposeInMainWorld` call: `sendCommand`, `isConnected`, `onMessage`, `onStatus`.
+- `src/hooks/useShellConnection.js` — new file. Renderer hook dispatching on `WSMessageType` (`session_update`, `shell_output`, `error`, `pong`) rather than treating every message as one undifferentiated blob.
+- `.env.example` (both repos) documenting `AUDIOMIX_API_TOKEN`, `AUDIOMIX_API_PORT`, `AUDIOMIX_ENV` — actual `.env` gitignored in both.
+
+### Changed
+
+- `AudioMIXBridge.send_command()` (`api/bridge.py`) — no longer reads `stdout` directly. Response reading now goes through an `asyncio.Queue` fed exclusively by the existing `_read_runtime_output()` background task, plus a pre-send drain of any stale queued lines.
+
+### Fixed
+
+- Resolved `readuntil() called while another coroutine is already waiting for incoming data` — two different coroutines (`send_command()` and the background `_read_runtime_output()` task) were both calling `stdout.readline()` on the same subprocess stream concurrently. `asyncio.StreamReader` only permits one reader at a time.
+- **The real goblin of the night:** full (non-safe) mode was taking dramatically longer to boot than safe mode, severe enough to strain WSL2 to the point of crashing it outright, twice.
+  - Root cause: `pydub`'s `AudioSegment` import performs an ffmpeg auto-detection scan across every directory in `$PATH` — and this machine's `$PATH` includes a long chain of `/mnt/c/...` Windows paths, each one a slow cross-filesystem 9P call from inside WSL2.
+  - Fixed by setting `AudioSegment.converter = "/usr/bin/ffmpeg"` explicitly in `audio_player.py` right after import, so pydub never needs to search `$PATH` at all.
+- Rebuilt a stale `.venv` that still carried the pre-rename absolute path (`ai_spotibot_player/.venv` baked into `pyvenv.cfg`) — silently caused `python3`/`pip` to fall through to the system interpreter despite `(.venv)` showing correctly in the shell prompt. Also corrected a matching stale `alias audiomix=...` entry in `~/.bashrc` still pointing at the old folder name.
+- Corrected a fake/nonexistent `torchaudio==2.13.0` pin in `requirements.txt` (no such version exists on PyPI, thanks Google 😒) blocking `pip install -r requirements.txt` entirely.
+- `pip install pretty_midi` — resolved `midi_bridge.py`'s `No module named 'pretty_midi'` import failure; now registers cleanly alongside every other module in full (non-safe) mode.
+- Pylance `reportCallIssue`/`reportArgumentType` on `secrets.compare_digest` in `main.py` — `API_TOKEN` was typed `str | None` even though a `raise` earlier in the module guaranteed it non-empty by the time `verify_token()` read it; fixed by annotating `API_TOKEN: str = os.environ.get(...) or ""` so the type is concrete without changing runtime behavior.
+
+### Notes
+
+- Confirmed end-to-end via `curl`: token rejected without header (401), accepted with valid header, `enter_live_mode()` spins up the runtime exactly once across repeated enter/exit/re-enter cycles (no respawn), and `glow("cyan")` returns its own real result instead of stale runtime startup output.
+- Electron-side wiring (`shellBridge.js`, `preload.cjs`, hook) is written and tailored to the real `WSMessage`/token contract, but not yet verified end-to-end against a running Electron instance — next session starts there.
+- AS Shell panel UI itself still does not exist. `useShellConnection` is ready to be consumed the moment it does. In development.
+
+---
+
 ## [v0.7-dev] - 2026-06-02
 
 ### Architecture
