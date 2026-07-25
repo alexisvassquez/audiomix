@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
 
 from api.routes import shell, session, transport
+from contextlib import asynccontextmanager
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -48,12 +49,29 @@ if not API_TOKEN:
         " python -c \"import secrets; print(secrets.token_hex(32))\""
     )
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manages the AudioMIX bridge's lifecycle alongside the FastAPI
+    app's own lifecycle.
+    Nothing runs on startup here, the AudioScript runtime subprocess is
+    only started when the user explicitly enters LIVE mode.
+    See bridge.enter_live_mode() in api/bridge.py
+    Does not apply when the server itself boots.
+    On shutdown, if the runtime happens to be running, this makes sure
+    it is terminated cleanly rather than left orphaned.
+    """
+    yield
+    from api.bridge import bridge
+    await bridge.shutdown()
+
 app = FastAPI(
     title="AudioMIX Bridge",
     description="Local FastAPI bridge between the AudioMIX core engine and the Electron UI.",
     version="0.1.0",
     docs_url="/docs" if os.environ.get("AUDIOMIX_ENV") == "dev" else None,
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

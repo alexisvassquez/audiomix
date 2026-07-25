@@ -210,6 +210,18 @@ class AudioMIXBridge:
                 error="Empty command"
             )
         
+        # Drain any backlog in the output queue before sending
+        # to remove any stale lines that may be mistaken for a command's
+        # result
+        drained = []
+        while True:
+            try:
+                drained.append(self._output_queue.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+        if drained:
+            logger.debug(f"Drained {len(drained)} stale runtime line(s) before sending command: {drained}")
+
         logger.debug(f"Sending command [{request.branch}]: {command}")
 
         assert self._runtime_process is not None
