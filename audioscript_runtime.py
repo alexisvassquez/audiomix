@@ -36,6 +36,7 @@ SAFE_MODE_ALLOWLIST = {
     "eq_commands.py",
     "led_controller.py",
     "shared.py",
+    "sequencer.py",
 }
 
 # Enable persistent shell history

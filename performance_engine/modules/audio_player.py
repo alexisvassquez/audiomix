@@ -54,6 +54,7 @@ except ImportError:
 _PYDUB_AVAILABLE: bool = False
 try:
     from pydub import AudioSegment
+    AudioSegment.converter = "/usr/bin/ffmpeg"
     _PYDUB_AVAILABLE = True
 except ImportError:
     pass
