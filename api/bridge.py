@@ -114,6 +114,33 @@ class AudioMIXBridge:
         self._output_task = asyncio.create_task(
             self._read_runtime_output()    # type: ignore
         )
+
+        # Don't consider the runtime ready until it is actually done
+        # initializing (check below)
+        await self._wait_for_runtime_ready()
+
+    async def _wait_for_runtime_ready(self, timeout: float = 10.0) -> None:
+        """
+        Blocks until the runtime prints its startup banner, which
+        audioscript_runtime.py only prints after load_modules() has fully
+        completed.
+        This guarantees all startup-time output (such as module registration,
+        DSP bridge attach, etc etc etc) has already been consumed from the
+        queue before start() returns - closing the race where an early
+        comand could receive leftover startup noise instead of its own response.
+        """
+        try:
+            while True:
+                line = await asyncio.wait_for(self._output_queue.get(), timeout=timeout)
+                logger.debug(f"[runtime startup] {line}")
+                if "Welcome to AudioMIX" in line:
+                    logger.info("Runtime signaled already")
+                    return
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Timed out waiting for runtime reader banner - proceeding "
+                "anyway, but early commands may race with startup output."
+            )
     
     async def shutdown(self) -> None:
         """
