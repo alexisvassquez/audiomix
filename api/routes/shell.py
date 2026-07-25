@@ -23,6 +23,7 @@ from api.bridge import bridge
 from api.models import (
     ShellCommandRequest,
     ShellCommandResponse,
+    SessionStateModel,
     WSMessage,
     WSMessageType,
     AudioScriptBranch,
@@ -31,7 +32,7 @@ from api.models import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/shell", tags=["shell"])
 
-# REST Endpoint
+# REST Endpoints
 @router.post("/command", response_model=ShellCommandResponse)
 async def post_command(request: ShellCommandRequest) -> ShellCommandResponse:
     """
@@ -47,6 +48,26 @@ async def post_command(request: ShellCommandRequest) -> ShellCommandResponse:
     """
     logger.info(f"POST /command - {request.command}")
     return await bridge.send_command(request)
+
+@router.post("/live/enter", response_model=SessionStateModel)
+async def enter_live_mode() -> SessionStateModel:
+    """
+    Starts the AudioScript runtime subprocess (if not already running)
+    and switches the session to the LIVE branch.
+    Called when the user clicks into the LIVE surface in the Electron UI.
+    """
+    logger.info("POST /shell/live/enter")
+    return await bridge.enter_live_mode()
+
+@router.post("/live/exit", response_model=SessionStateModel)
+async def exit_live_mode() -> SessionStateModel:
+    """
+    Switches the session back to the IR branch.
+    The runtime subprocess is left running, idle, for instant resume.
+    See exit_live_mode() in bridge.py for why.
+    """
+    logger.info("POST /shell/live/exit")
+    return await bridge.exit_live_mode()
 
 # WebSocket Endpoint
 @router.websocket("/ws")

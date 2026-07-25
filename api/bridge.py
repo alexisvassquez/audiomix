@@ -65,6 +65,7 @@ class AudioMIXBridge:
         self._runtime_process: Optional[asyncio.subprocess.Process] = None
         self._running: bool = False
         self._output_task: Optional[asyncio.Task] = None
+        self._output_queue: asyncio.Queue[str] = asyncio.Queue()
 
         # Registered WebSocket notification callbacks
         # Each connected Electron client registers a callback here
@@ -139,6 +140,43 @@ class AudioMIXBridge:
 
         logger.info("AudioScript runtime stopped")
 
+    # LIVE mode (live coding)
+    async def enter_live_mode(self) -> SessionStateModel:
+        """
+        Called when the user switches into LIVE mode from the Electron
+        UI.
+        Starts the AudioScript runtime subprocess only if it has never been
+        started this session.
+        Re-entering LIVE mode after a pause reuses the already-running
+        process rather than respawning it, so there's no state loss
+        and resuming is instant.
+        """
+        if not self._running:
+            await self.start()
+
+        self._session.audioscript_branch = AudioScriptBranch.LIVE.value
+        self._session.last_event = "mode:live_resumed"
+        await self._notify_clients()
+
+        logger.info("Entered/resumed LIVE mode")
+        return self._get_session_model()
+
+    async def exit_live_mode(self) -> SessionStateModel:
+        """
+        Called when the user leaves LIVE mode back to STUDIO.
+        Does NOT kill the runtime subprocess - it stays alive, idle, in
+        the background so re-entering LIVE mode later is instant w/ no
+        state loss.
+        Only the session's active branch changes; commands simply
+        aren't expected to be sent while paused.
+        """
+        self._session.audioscript_branch = AudioScriptBranch.IR.value
+        self._session.last_event = "mode:live_paused"
+        await self._notify_clients()
+
+        logger.info("Exited LIVE mode (runtime left running, idle)")
+        return self._get_session_model()
+
     # Command Routing
     async def send_command(
         self, 
@@ -185,13 +223,14 @@ class AudioMIXBridge:
             )
             await self._runtime_process.stdin.drain()
 
-            # Read response from runtime stdout
-            # Runtime responds with one line per command
-            line = await asyncio.wait_for(
-                self._runtime_process.stdout.readline(),
+            # Read response via the queue fed by _read_runtime_output(),
+            # rather than reading stdout directly
+            # Only one coroutine may await stdout at a time, the bkgrd reader
+            # task already owns that responsibility.
+            result = await asyncio.wait_for(
+                self._output_queue.get(),
                 timeout=5.0
             )
-            result = line.decode().strip()
 
             # Update session state with last command
             self._session.last_as_command = command
@@ -399,6 +438,7 @@ class AudioMIXBridge:
                 decoded = line.decode().strip()
                 if decoded:
                     logger.debug(f"[runtime] {decoded}")
+                    await self._output_queue.put(decoded)
             except Exception as e:
                 logger.error(f"Runtime output reader error: {e}")
                 break
