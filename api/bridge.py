@@ -117,7 +117,7 @@ class AudioMIXBridge:
 
         # Don't consider the runtime ready until it is actually done
         # initializing (check below)
-        await self._wait_for_runtime_ready()
+        await self._wait_for_runtime_ready(timeout=60.0)
 
     async def _wait_for_runtime_ready(self, timeout: float = 10.0) -> None:
         """
