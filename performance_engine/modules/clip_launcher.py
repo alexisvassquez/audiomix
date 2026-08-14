@@ -5,6 +5,7 @@ import os, json, subprocess, shlex, threading, tempfile
 from typing import Dict, List, Any, Optional
 import queue, time
 import soundfile as sf
+
 from performance_engine.utils.shell_output import say
 from performance_engine.modules.context import command_registry
 from performance_engine.modules.sampler import sampler_play
@@ -106,17 +107,20 @@ class ClipPlayer:
             def play_once() -> bool:
                 if self._stop.is_set():
                     return False
+                tmp_path = self._tmp_path
+                if not tmp_path:
+                    return False
                 try:
                     # blocks playback to respect stop/loop
                     self._proc = subprocess.Popen(
-                        ["aplay", self._tmp_path],
+                        ["aplay", tmp_path],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
                     # poll for completion/stop
-                    while proc.poll() is None and not self._stop.is_set():
+                    while self._proc.poll() is None and not self._stop.is_set():
                         time.sleep(0.02)    # wait
-                    if self._stop.is_set() and proc.poll() is None:
+                    if self._stop.is_set() and self._proc.poll() is None:
                         try:
                             self._proc.terminate()
                         except Exception:
