@@ -24,8 +24,8 @@ pydub
 
 # --- Machine Learning / AI ---
 scikit-learn
-torch==2.11.0+cpu
-torchaudio==2.11.0
+torch==2.13.0+cpu
+torchaudio==2.13.0
 torchvision==0.26.0
 --extra-index-url https://download.pytorch.org/whl/cpu
 transformers
