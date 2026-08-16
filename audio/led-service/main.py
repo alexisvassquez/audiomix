@@ -1,3 +1,9 @@
+# AudioMIX
+# audio/led-service/main.py
+#
+# FastAPI for the LED controller
+# In development
+
 import json
 import sys
 import os
@@ -5,9 +11,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../l
 
 from fastapi import FastAPI
 from pydantic import BaseModel
-from controller import LightController
-from color_profiles import get_color_for_mood, get_pattern_for_mood
-from audio_reactive import react_to_audio
+
+from audio.led.controller import LightController
+from audio.led.color_profiles import get_color_for_mood, get_pattern_for_mood, get_color_for_name
+from audio.led.audio_reactive import react_to_audio
 
 app = FastAPI()
 led = LightController()

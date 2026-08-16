@@ -2,11 +2,11 @@
 # audio/led/audio_reactive.py
 
 from audio.led.controller import LightController
-from audio.led.color_profiles import get_color_for_mood, get_pattern_for_mood
+from audio.led.color_profiles import get_color_for_mood, get_pattern_for_mood, get_color_for_name
 
 def react_to_audio(mood, bpm=120, zone="main"):
     led = LightController()
-    color = get_color_for_mood(mood)
+    color = get_color_for_name(mood)
     pattern = get_pattern_for_mood(mood)
 
     print(f"[Live Trigger] Mood: {mood} >> Pattern: {pattern}, Zone: {zone}")
