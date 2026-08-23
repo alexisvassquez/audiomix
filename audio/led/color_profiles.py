@@ -84,4 +84,4 @@ def get_color_for_name(color_name):
         if rgb:
             return rgb
         # Default to white
-        return COLOR_NAME_MAP.get(color_name.lower(), (255, 255, 255))
+    return COLOR_NAME_MAP.get(color_name.lower(), (255, 255, 255))
