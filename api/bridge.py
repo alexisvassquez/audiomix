@@ -64,6 +64,7 @@ class AudioMIXBridge:
         self._session: SessionState = make_default_session(project_name)
         self._runtime_process: Optional[asyncio.subprocess.Process] = None
         self._running: bool = False
+        self._safe_mode: bool = True
         self._output_task: Optional[asyncio.Task] = None
         self._output_queue: asyncio.Queue[str] = asyncio.Queue()
 
@@ -75,7 +76,7 @@ class AudioMIXBridge:
         logger.info(f"AudioMIXBridge initialized - project: {project_name}")
 
     # Lifecycle
-    async def start(self) -> None:
+    async def start(self, safe: bool = True) -> None:
         """
         Start the AudioScript (AS) runtime subprocess.
         Called once when the FastAPI server starts up.
@@ -97,15 +98,22 @@ class AudioMIXBridge:
                 f"AudioScript runtime not found at: {runtime_path}\n"
                 f"Ensure audioscript_runtime.py is in the project root."
             )
+
+        # Inherit the parent environment, but explicitly set/clear
+        # AUDIOMIX_SAFE so a stray inherited value can't override intent
+        env = os.environ.copy()
+        env["AUDIOMIX_SAFE"] = "1" if safe else "0"
         
         self._runtime_process = await asyncio.create_subprocess_exec(
             sys.executable, runtime_path,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
 
         self._running = True
+        self._safe_mode = safe
         logger.info(f"AudioScript runtime started - PID {self._runtime_process.pid}")
 
         # Start reading stdout from the runtime in the bkgrd
@@ -118,6 +126,20 @@ class AudioMIXBridge:
         # Don't consider the runtime ready until it is actually done
         # initializing (check below)
         await self._wait_for_runtime_ready(timeout=60.0)
+
+    async def _ensure_full_mode(self) -> None:
+        """
+        Escalates the runtime subproc to full mode if it's currently
+        running in SAFE_MODE. Called on entering LIVE mode - live coding assumes the full module set is available.
+        """
+        if self._running and not self._safe_mode:
+            return
+
+        if self._running and self._safe_mode:
+            logger.info("Escalating runtime from SAFE_MODE to full mode...")
+            await self.shutdown()
+
+        await self.start(safe=False)
 
     async def _wait_for_runtime_ready(self, timeout: float = 10.0) -> None:
         """
@@ -172,14 +194,13 @@ class AudioMIXBridge:
         """
         Called when the user switches into LIVE mode from the Electron
         UI.
-        Starts the AudioScript runtime subprocess only if it has never been
-        started this session.
-        Re-entering LIVE mode after a pause reuses the already-running
-        process rather than respawning it, so there's no state loss
-        and resuming is instant.
+        Escalates the runtime to full mode if it booted in SAFE_MODE
+        (default server startup).
+        Re-entering LIVE mode after a pause, once already in full mode, reuses
+        the already-running process rather than respawning it, so there is no
+        state loss and resuming is instant.
         """
-        if not self._running:
-            await self.start()
+        await self._ensure_full_mode()
 
         self._session.audioscript_branch = AudioScriptBranch.LIVE.value
         self._session.last_event = "mode:live_resumed"

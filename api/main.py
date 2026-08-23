@@ -17,6 +17,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 import os
 import secrets
 import logging
+import asyncio
 from fastapi import FastAPI, Request, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
@@ -54,13 +55,19 @@ async def lifespan(app: FastAPI):
     """
     Manages the AudioMIX bridge's lifecycle alongside the FastAPI
     app's own lifecycle.
-    Nothing runs on startup here, the AudioScript runtime subprocess is
-    only started when the user explicitly enters LIVE mode.
-    See bridge.enter_live_mode() in api/bridge.py
-    Does not apply when the server itself boots.
-    On shutdown, if the runtime happens to be running, this makes sure
-    it is terminated cleanly rather than left orphaned.
+
+    AudioScript runtime subproc now starts here, immediately on server boot.
+    Not gated behind user entering LIVE mode.
+    STUDIO mode needs to trigger clips the moment a producer starts
+    placing them, w/o first switching into live-coding mode.
+    LIVE/IR is purely which AudioScript branch is active for authoring.
+
+    enter_live_mode()/exit in api/bridge.py are unaffected.
+    On shutdown, terminates the runtime subprocc cleanly rather than leaving it
+    orphaned.
     """
+    from api.bridge import bridge
+    asyncio.create_task(bridge.start())
     yield
     from api.bridge import bridge
     await bridge.shutdown()
