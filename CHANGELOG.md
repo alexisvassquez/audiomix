@@ -9,6 +9,26 @@ The AudioMIX Electron UI has its own separate changelog in the [AudioMIX Electro
 
 ---
 
+## [v0.9-dev] - 2026-08-22
+
+### Fixed
+
+- `performance_engine/modules/clip_launcher.py` — `ClipPlayer._run()`'s `play_once()` referenced a bare `proc` that was never defined anywhere in scope; only `self._proc` was ever assigned. Every clip trigger would have raised `NameError` the moment playback actually ran. Fixed by using `self._proc` consistently, and narrowed `self._tmp_path` into a local `tmp_path` inside `play_once()` so Pylance can prove it's non-`None` at the `Popen()` call site (the guard in `_run()` didn't carry across the nested function's scope).
+- `audio/led/color_profiles.py` — `get_color_for_name()`'s fallback `return COLOR_NAME_MAP.get(...)` was indented one level too deep, trapped inside the `if color_name.startswith("#"):` block. Any plain color name (`glow("cyan")`) skipped the `if` entirely and fell off the end of the function with no return statement, implicitly returning `None` — which `LightController.set_color()` apparently renders as white. Dedented the fallback so it runs for both failed-hex and plain-name inputs.
+- `led_controller.py` — `glow()`/`pulse()` were calling `get_color_for_mood()` on color names like `"cyan"`, which is a mood table, not a color-name table. `"cyan"` was never going to resolve there. Split the two: `glow()`/`pulse()` now use the new `get_color_for_name()` (color names + hex codes), `mood_react()` still correctly uses `get_color_for_mood()`.
+
+### Added
+
+- `audio/led/color_profiles.py` — `COLOR_NAME_MAP` (14 named colors) and `get_color_for_name()`, restoring the hex-code support (`glow("#FF0000")`) that was documented in the original `glow()` docstring but never actually implemented anywhere.
+- `audioscript_runtime.py`'s `main()` now calls `sampler_bank_load("performance_engine/config/sampler_bank_drums.json")` at boot (guarded by `SAFE_MODE`, since `sampler.py` isn't in `SAFE_MODE_ALLOWLIST`). Without this, `_BANKS` was empty for the lifetime of the runtime process — every `clip.add(kind="sampler", ...)` would register successfully but every `clip.trigger()` would fail with `"[sampler] file missing"`, since `_resolve_sampler_path()` had nothing to look up against.
+
+### Notes
+
+- **The actual goblin this time was hardware, not code:** WSL2 has no real ALSA sound card, so `aplay` failed outright with `Unknown PCM default` until ALSA was pointed at PulseAudio via `~/.asoundrc` (`pcm.!default { type pulse }` / `ctl.!default { type pulse }`). See `SYSTEM_DEPENDENCIES.md` for the full fix — this will bite again on any fresh WSL2 install.
+- **Milestone:** first fully confirmed end-to-end playback round-trip — Electron click-to-place → sample picker → `clip.add()` over the bridge → LIVE mode → playhead crossing → `clip.trigger()` → `aplay` → real audio out of real speakers. STUDIO's MVP core loop ("place clips in time and hear a structure emerge") is now genuinely true, not aspirational.
+
+---
+
 ## [v0.8-dev] - 2026-07-25
 
 ### Architecture
