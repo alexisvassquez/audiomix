@@ -51,6 +51,9 @@ audiomix
 *.aiff
 *.m4a
 
+# Windows download metadata
+*.Identifier
+
 # === System ===
 .DS_Store
 Thumbs.db
