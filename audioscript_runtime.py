@@ -37,6 +37,7 @@ SAFE_MODE_ALLOWLIST = {
     "led_controller.py",
     "shared.py",
     "sequencer.py",
+    "gain.py,"
 }
 
 # Enable persistent shell history
