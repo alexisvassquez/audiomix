@@ -1,4 +1,3 @@
-// audiomix
 // AudioMIX
 // audio/dsp/audiomix_dsp.h
 
@@ -28,6 +27,7 @@
 #include "audio/dsp/core/eq_params_parse.h"
 #include "audio/dsp/core/compressor_params.h"
 #include "audio/dsp/core/compressor_params_parse.h"
+#include "audio/dsp/core/gain_params_parse.h"
 
 // control plane
 #include "audio/dsp/core/control/param_ids.h"

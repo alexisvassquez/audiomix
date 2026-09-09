@@ -1,4 +1,3 @@
-// audiomix
 // AudioMIX
 // main.cpp
 
@@ -30,6 +29,7 @@ struct ControlBus {
     // Pointer to the EQ module inside DSP chain
     EqModule* eq = nullptr;
     CompressorModule* compressor = nullptr;
+    GainModule* gain = nullptr;
 
     // latest raw EQ command line received
     // control thread writes under mutex; audio thread copies when signaled
@@ -121,6 +121,17 @@ static void controlLoop(ControlBus* bus) {
             }
             if (bus->compressor) bus->compressor->setParams(parsed);
             std::cout << "{\"cmd\":\"ack\",\"ack\":\"compressor.set\"}" << std::endl;
+            continue;
+        }
+
+        if (containsCmd(line, "gain.set")) {
+            float gainDb = 0.0f;
+            if (!parseGainSetLine(line, gainDb)) {
+                std::cout << "{\"cmd\":\"error\",\"error\":\"bad_gain_payload\"}" << std::endl;
+                continue;
+            }
+            if (bus->gain) bus->gain->setGainDb(gainDb);
+            std::cout << "{\"cmd\":\"ack\",\"ack\":\"gain.set\"}" << std::endl;
             continue;
         }
 
@@ -264,6 +275,7 @@ int main(int argc, char* argv[])
     auto* gain = state.chain.emplaceModule<audiomix::dsp::GainModule>();
     gain->setGainDb(0.0f);
     state.gain = gain;
+    control.gain = gain;
 
     // Clipper module
     auto* clipper = state.chain.emplaceModule<ClipperModule>();
