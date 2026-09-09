@@ -497,7 +497,7 @@ class AudioMIXBridge:
                     break
                 decoded = line.decode().strip()
                 if decoded:
-                    logger.debug(f"[runtime] {decoded}")
+                    print(f"[runtime] {decoded}")
                     await self._output_queue.put(decoded)
             except Exception as e:
                 logger.error(f"Runtime output reader error: {e}")

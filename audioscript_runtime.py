@@ -319,12 +319,10 @@ def main():
     # Load command modules after global settings are set
     load_modules()
 
-    # Load the default sampler bank(s) so clip.add(kind="sampler", ...)
-    # and sampler.play() have something to resolve against.
-    # Guarded by SAFE_MODE
-    if not SAFE_MODE:
-        from performance_engine.modules.sampler import sampler_bank_load
-        sampler_bank_load("performance_engine/config/sampler_bank_drums.json")
+    # Load the default sampler bank(s)
+    # Runs regardless of SAFE_MODE
+    from performance_engine.modules.sampler import sampler_bank_load
+    sampler_bank_load("performance_engine/config/sampler_bank_drums.json")
 
     say("Welcome to AudioMIX - AudioScript Shell v0.1", "🎚️")
     say("Type AudioScript commands below. Ctrl+C to exit.\\n")
