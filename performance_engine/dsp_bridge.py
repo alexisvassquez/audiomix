@@ -134,6 +134,7 @@ class DSPBridge:
         self._bus.on("dsp.compressor.set", self._handle_compressor_set)
         self._bus.on("dsp.gain.set", self._handle_gain_set)
         self._bus.on("dsp.ping", self._handle_ping)
+        self._bus.on("dsp.clipper.set", self._handle_clipper_set)
 
     # Handlers
     # one per DSP command type
@@ -157,6 +158,13 @@ class DSPBridge:
         keys: gain_db (float)
         """
         self._send({"cmd": "gain.set", **payload})
+
+    def _handle_clipper_set(self, payload: dict):
+        """
+        clipper.set
+        keys (all optional): drive_db, ceiling_db, mix, mode
+        """
+        self._send({"cmd": "clipper.set", **payload})
 
     def _handle_ping(self, payload=None):
         self._send({"cmd": "ping"})

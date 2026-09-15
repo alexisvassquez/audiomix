@@ -11,7 +11,7 @@
   included it.
   The caller (main.cpp's controlLoop) only calls the corresponding setter when a
   field is present, leaving every other param untouched on the live module.
-  Not silently reset to a default variable.
+  Not silently reset to a default value.
 */
 
 #pragma once
