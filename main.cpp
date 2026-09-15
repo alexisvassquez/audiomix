@@ -26,10 +26,11 @@ using namespace audiomix::dsp;
   DSP modules apply them safely
 */
 struct ControlBus {
-    // Pointer to the EQ module inside DSP chain
+    // Pointers to the modules inside DSP chain
     EqModule* eq = nullptr;
     CompressorModule* compressor = nullptr;
     GainModule* gain = nullptr;
+    ClipperModule* clipper = nullptr;
 
     // latest raw EQ command line received
     // control thread writes under mutex; audio thread copies when signaled
@@ -51,7 +52,7 @@ struct AudioState {
     // 512 samples max buffer size
     unsigned int maxBlockSize = 512;
 
-    // reference module ptrs
+    // reference module pointers
     EqModule* eq = nullptr;
     GainModule* gain = nullptr;
     ClipperModule* clipper = nullptr;
@@ -76,7 +77,8 @@ static inline bool containsCmd(const std::string& line, const char* cmd) {
   Control Loop:
   Reads NDJSON commands from stdin and dispatches to DSP
   modules.
-  Runs on a dedicated thread, never touches the audio callback.*/
+  Runs on a dedicated thread, never touches the audio callback.
+*/
 static void controlLoop(ControlBus* bus) {
     std::string line;
     while (bus->running.load(std::memory_order_relaxed) && std::getline(std::cin, line)) {
@@ -91,6 +93,7 @@ static void controlLoop(ControlBus* bus) {
             continue;
         }
 
+        // Branches
         // Apply EQ from the control thread (off audio thread)
         // eq.set
         if (containsCmd(line, "eq.set")) {
@@ -124,6 +127,7 @@ static void controlLoop(ControlBus* bus) {
             continue;
         }
 
+        // gain.set
         if (containsCmd(line, "gain.set")) {
             float gainDb = 0.0f;
             if (!parseGainSetLine(line, gainDb)) {
@@ -132,6 +136,23 @@ static void controlLoop(ControlBus* bus) {
             }
             if (bus->gain) bus->gain->setGainDb(gainDb);
             std::cout << "{\"cmd\":\"ack\",\"ack\":\"gain.set\"}" << std::endl;
+            continue;
+        }
+
+        // clipper.set
+        if (containsCmd(line, "clipper.set")) {
+            ClipperParsedFields fields;
+            if (!parseClipperSetLine(line, fields)) {
+                std::cout << "{\"cmd\":\"error\",\"error\":\"bad_clipper_payload\"}" << std::endl;
+                continue;
+            }
+            if (bus->clipper) {
+                if (fields.driveDb) bus->clipper->setDriveDb(*fields.driveDb);
+                if (fields.ceilingDb) bus->clipper->setCeilingDb(*fields.ceilingDb);
+                if (fields.mix) bus->clipper->setMix(*fields.mix);
+                if (fields.mode) bus->clipper->setMode(*fields.mode);
+            }
+            std::cout << "{\"cmd\":\"ack\",\"ack\":\"clipper.set\"}" << std::endl;
             continue;
         }
 
@@ -284,6 +305,7 @@ int main(int argc, char* argv[])
     clipper->setMix(1.0f);
     clipper->setMode(ClipperModule::Mode::Soft);
     state.clipper = clipper;
+    control.clipper = clipper;
 
     // Headless mode (hardware agnostic)
     // adds sinks BEFORE prepare() so sinks get prepare/reset correctly
