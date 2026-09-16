@@ -21,12 +21,15 @@ The runtime also supports running .audioscript files passed as command-line argu
 """
 
 from __future__ import annotations
-import sys, os, importlib, shlex, atexit
+import sys, os, importlib, shlex, atexit, re, ast
 import time as _time
 import readline
 from performance_engine.modules.context import command_registry
 
 # Allowlist -> SAFE_MODE (for lighter runtime load)
+# First developed as a helper during prior hardware constraints, 
+# SAFE_MODE is now used for active development and to avoid
+# race conditions.
 SAFE_MODE = os.environ.get("AUDIOMIX_SAFE", "0") == "1"
 SAFE_MODE_ALLOWLIST = {
     "context.py",
@@ -39,6 +42,7 @@ SAFE_MODE_ALLOWLIST = {
     "sequencer.py",
     "gain.py",
     "clipper.py",
+    "sampler.py",
 }
 
 # Enable persistent shell history
@@ -174,7 +178,7 @@ def play(path: str, **kwargs):
     Delegates to performance_engine.modules.audio_player
     """
     if SAFE_MODE:
-        say(f"[SAFE] Would play: {path} (no audio in safe mode)")
+        say(f"[SAFE] Would play: {path}")
         return
     from performance_engine.modules.audio_player import play as _play
     _play(path)
@@ -231,8 +235,7 @@ def trigger_zones(zones, mood="calm", bpm=120):
      - zones: list of zone names to trigger (e.g. ["zone1", zone2"])
      - mood: current mood for lighting effects (default: "calm")
      - bpm: current BPM for pulse synchronization (default: 120)
-     Example: trigger_zones(["zone1", "zone2"], mood="energetic", bpm=140)
-     Note: In SAFE_MODE, this will only print the intended action without triggering actual lighting changes.
+    Example: trigger_zones(["zone1", "zone2"], mood="energetic", bpm=140)
     """
     if SAFE_MODE:
         say(f"[SAFE] Would trigger zones={zones} mood={mood} bpm={bpm}")
@@ -245,15 +248,95 @@ def trigger_zones(zones, mood="calm", bpm=120):
     except Exception as e:
         say(f"[ERROR] Lighting trigger failed: {e}", "❌")
 
+# Keyword-argument helpers for parse and execute
+_KWARG_RE = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$', re.DOTALL)
+
+def _split_top_level(arg_str):
+    """
+    Split an argument string on commas that are NOT inside quotes or
+    brackets/parens.
+    Lets list/dict/tuple literals pass through as a single token.
+    Ex: ["zone1", "zone2"] stays together
+    """
+    tokens = []
+    current = []
+    in_quote = None
+    depth = 0
+    for ch in arg_str:
+        if in_quote:
+            current.append(ch)
+            if ch == in_quote:
+                in_quote = None
+            continue
+        if ch in ('"', "'"):
+            in_quote = ch
+            current.append(ch)
+        elif ch in "([{":
+            depth += 1
+            current.append(ch)
+        elif ch in ")]}":
+            depth -= 1
+            current.append(ch)
+        elif ch == "," and depth == 0:
+            tokens.append("".join(current).strip())
+            current = []
+        else:
+            current.append(ch)
+    last = "".join(current).strip()
+    if last:
+        tokens.append(last)
+    return tokens
+
+def _coerce_value(raw):
+    """
+    Turn a raw argument token into a real Python value:
+    quoted strings -> str (quotes stripped), 
+    list/dict/tuple literals -> parsed via ast.literal_eval, 
+    true/false/none -> bool/None,
+    int/float literals -> int/float, 
+    anything else -> left as string.
+    """
+    raw = raw.strip()
+
+    if raw[:1] in ("[", "{") or (raw[:1] == "(" and raw[-1:] == ")"):
+        try:
+            return ast.literal_eval(raw)
+        except (ValueError, SyntaxError):
+            # fall through, treat as plain string below
+            pass
+
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in ('"', "'"):
+        return raw[1:-1]
+
+    low = raw.lower()
+    if low == "true":
+        return True
+    if low == "false":
+        return False
+    if low == "none":
+        return None
+
+    try:
+        return int(raw)
+    except ValueError:
+        pass
+    try:
+        return float(raw)
+    except ValueError:
+        pass
+
+    # bare word, unquoted string
+    return raw
+
 # Command execution
 def parse_and_execute(line):
     """ 
     Parse a line of input and execute the corresponding command.
      - line: the input string to parse and execute
-     The expected format is: command(arg1, arg2, ...)
-     Arguments are parsed using shlex.split to handle quoted strings.
-     If the command is registered in the command_registry, it will be executed with the parsed arguments.
-     The result of the command execution will be printed. If the command is not found or if there is a syntax error, an error message will be printed instead.
+    Expected format is: command(arg1, arg2, key=value, ...)
+    Positional args and kwargs (key=value) are both supported,
+    along w/ quoted strings, numbers, booleans, None, and
+    list/dict/tuple literals.
     """
     line = (line or "").strip()
     if line.startswith("#") or not line:
@@ -262,23 +345,25 @@ def parse_and_execute(line):
 
     if "(" in line and line.endswith(")"):
         command, arg_str = line.split("(", 1)
+        command = command.strip()
         arg_str = arg_str[:-1] # Remove trailing ")"
 
-        if not arg_str:
-            # no arguments
-            parts = []
-        elif '"' in arg_str or "'" in arg_str:
-            # quoted strings
-            # use shlex to handle them correctly
-            parts = [p.strip(",") for p in shlex.split(arg_str)]
-        else:
-            # numeric or simple args - split on commas
-            parts = [p.strip() for p in arg_str.split(",") if p.strip()]
+        args = []
+        kwargs = {}
+
+        if arg_str.strip():
+            for token in _split_top_level(arg_str):
+                m = _KWARG_RE.match(token)
+                if m:
+                    key, val_raw = m.group(1), m.group(2)
+                    kwargs[key] = _coerce_value(val_raw)
+                else:
+                    args.append(_coerce_value(token))
 
         func = command_registry.get(command)
         if func:
             try:
-                result = func(*parts)
+                result = func(*args, **kwargs)
                 if isinstance(result, list):
                     for item in result:
                         say(item)
@@ -286,6 +371,8 @@ def parse_and_execute(line):
                     say(result)
                 elif result is not None:
                     say(str(result))
+            except TypeError as e:
+                say(f"[ERROR] Bad arguments for {command}: {e}", "❌")
             except Exception as e:
                 say(f"[ERROR] Execution failed: {e}", "❌")
         else:
@@ -322,7 +409,6 @@ def main():
     load_modules()
 
     # Load the default sampler bank(s)
-    # Runs regardless of SAFE_MODE
     from performance_engine.modules.sampler import sampler_bank_load
     sampler_bank_load("performance_engine/config/sampler_bank_drums.json")
 
@@ -344,7 +430,8 @@ def main():
     while True:
         try:
             if midi_tick:
-                midi_tick()    # keep processing realtime MIDI events
+                # keep processing realtime MIDI events
+                midi_tick()
             line = input("🎛️ > ")
             parse_and_execute(line)
         except KeyboardInterrupt:

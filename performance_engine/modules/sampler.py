@@ -3,7 +3,6 @@
 
 import os, json, subprocess
 from typing import Dict, Any
-from performance_engine.modules.track_engine import track_registry
 from performance_engine.modules.led_controller import pulse
 from performance_engine.utils.shell_output import say
 

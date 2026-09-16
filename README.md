@@ -95,7 +95,7 @@ Useful flags:
 
 | Flag | Effect |
 | ------ | -------- |
-| `--safe` | Restrict loaded modules; no hardware/audio side effects |
+| `--safe` | Restrict loaded modules for faster, lighter boot |
 | `--no-dsp` | Skip launching the C++ `audiomix` binary |
 | `--debug` | Verbose module loading |
 | `--no-emoji` | Plain text output |
