@@ -9,6 +9,113 @@ The AudioMIX Electron UI has its own separate changelog in the [AudioMIX Electro
 
 ---
 
+## [v0.10-dev] - 2026-09-26
+
+### Added
+
+- **AudioScript keyword arguments.** `parse_and_execute()` in
+  `audioscript_runtime.py` now supports `key=value` arguments, not just
+  positional. New helpers: `_split_top_level()` (splits on top-level
+  commas only, so list/dict/tuple literals and quoted strings pass
+  through intact via quote- and bracket-depth tracking), `_coerce_value()`
+  (turns raw tokens into real Python types — quoted strings, numbers,
+  booleans, `None`, and `ast.literal_eval`'d collection literals), and
+  `_KWARG_RE`. Positional calls are fully backward-compatible; the old
+  empty-string-skip idiom (`clipper.set("", "-3", "", "")`) still parses
+  identically. This is a language-level change, not a single feature —
+  every AS command gains kwargs at once. Also added a dedicated
+  `TypeError` catch so an argument-arity mismatch gives a clear
+  `"Bad arguments for {command}"` message instead of a swallowed generic
+  exception.
+- **Gain made runtime-controllable.** `audio/dsp/core/gain_params_parse.h`
+  — new flat-JSON parser (`gain.set` convention, no nested `payload`
+  wrapper, matching `compressor_params_parse.h`), with a required
+  `gain_db` field and a `[-60, 24]` dB safety clamp. `main.cpp`'s
+  `ControlBus` gains a `GainModule* gain` pointer, `controlLoop` gains a
+  `gain.set` handler, and `main()` wires `control.gain = gain`.
+  `GainModule` already had a working `setGainDb()` — nothing on the C++
+  side was ever listening for the `gain.set` DSPBridge was already
+  sending.
+- `performance_engine/modules/gain.py` — new AS command module
+  (`gain.set`, `gain.status`, `gain.reset`), validating input and
+  emitting `dsp.gain.set` on the EventBus.
+- **Clipper made runtime-controllable.**
+  `audio/dsp/core/clipper_params_parse.h` — new parser using
+  `std::optional` per field rather than a default-constructed params
+  struct. This is a deliberate improvement over the eq/compressor
+  pattern: `ClipperModule` has real getters, so only fields actually
+  present in the incoming JSON get applied, leaving every other
+  parameter genuinely untouched on the live module (the compressor
+  pattern silently falls omitted fields back to struct *defaults*, not
+  the module's current live value). `main.cpp` gains a `clipper.set`
+  handler calling the four independent setters (`setDriveDb`,
+  `setCeilingDb`, `setMix`, `setMode`); `ControlBus` gains the pointer.
+- `performance_engine/modules/clipper.py` — new AS command module.
+  Docstring documents that AS is positional-only *at time of writing* —
+  superseded within the same session by the kwargs support above, so
+  `clipper.set(drive_db=6, mode="hard")` is now the clean form.
+- `performance_engine/dsp_bridge.py` — new `_handle_clipper_set` handler
+  and `dsp.clipper.set` registration (previously emitted into the void —
+  nothing was listening).
+- `audiomix_dsp.h` — added `gain_params_parse.h` and
+  `clipper_params_parse.h` to the umbrella header's parser section.
+
+### Changed
+
+- **Runtime boots in SAFE_MODE by default, escalating to full mode only
+  on first LIVE entry.** `api/bridge.py`'s `start()` gained a
+  `safe: bool = True` parameter and a new `_ensure_full_mode()` that
+  respawns the runtime subprocess in full mode when LIVE is first
+  entered (and no-ops if already full). `api/main.py`'s `lifespan` now
+  starts the runtime at server boot as a fire-and-forget task
+  (`asyncio.create_task`, not awaited) so the server accepts connections
+  immediately instead of blocking up to 60s on the heavy subprocess.
+  Rationale: STUDIO mode needs to trigger clips and adjust DSP without
+  requiring the user to enter live-coding mode first, and the heavy
+  ML-import spike (`torch`/`librosa`/`transformers`) should only happen
+  when LIVE actually needs it — not on every boot. `exit_live_mode()`
+  deliberately does *not* downgrade back to SAFE_MODE, to avoid paying
+  the respawn cost on every STUDIO↔LIVE toggle.
+- `gain.py`, `clipper.py`, and `sampler.py` added to
+  `SAFE_MODE_ALLOWLIST` so DSP control and sample loading work in STUDIO
+  mode without a full-mode boot.
+
+### Fixed
+
+- **Corrects the v0.9-dev entry:** `sampler_bank_load()` at boot was
+  documented as "guarded by `SAFE_MODE`." That guard was wrong once
+  SAFE_MODE became the default boot mode — it meant the drums bank never
+  loaded at all, reviving the exact `"[sampler] file missing"` failure
+  the call was added to fix. The guard has been removed;
+  `sampler_bank_load()` now runs unconditionally at boot. `sampler.py`
+  has no heavy dependencies (just `json`/`os`/`subprocess`), so there was
+  never a real reason to gate it.
+- `api/bridge.py` — the runtime subprocess's stdout was being logged at
+  `logger.debug`, but `main.py` configures logging at `INFO`, so every
+  line the runtime printed (module registration, `sampler_bank_load`'s
+  own success/failure output, the boot banner) was silently swallowed.
+  This masked the sampler-guard bug above for an entire debugging
+  session. Surfaced by switching runtime-output logging to `print()`.
+
+### Notes
+
+- **The near-error was a WSL2 memory ceiling, not code.** Booting the
+  full-mode runtime automatically on every server start (an early,
+  since-corrected version of the SAFE_MODE change) spiked memory hard
+  enough to crash the whole WSL2 VM — twice — because the heavy ML
+  imports fired on every restart instead of only on LIVE entry. The
+  SAFE_MODE-by-default design is the real fix; a `~/.wslconfig`
+  `memory=16GB` cap (on a 32GB machine) is the backstop. The lesson:
+  local-first AI's cost is real and has to be gated to the moment it's
+  actually needed, not paid eagerly at boot.
+- **Milestone:** the DSP chain is now controllable from the UI, not just
+  via typed AudioScript. Gain and Clipper join EQ and Compressor as
+  runtime-controllable modules. Shimmer, Digital Choir, and Reverb remain
+  hardcoded at boot (Phase 3 texture work); `SubbassIsolation` is still
+  compiled but never instantiated.
+
+---
+
 ## [v0.9-dev] - 2026-08-22
 
 ### Fixed
