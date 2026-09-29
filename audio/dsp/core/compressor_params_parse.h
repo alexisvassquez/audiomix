@@ -1,7 +1,6 @@
-// audiomix
 // AudioMIX
 // audio/dsp/core/compressor_params_parse.h
-
+//
 /*
   NDJSON parser for compressor.set control messages.
   
@@ -14,7 +13,10 @@
       "threshold": -18.0,
       "ratio": 4.0,
       "attack_ms": 10.0,
-      "release_ms": 80.0
+      "release_ms": 80.0,
+      "knee_db": 6.0,
+      "makeup_db": 0.0,
+      "mix": 1.0
     }
   
   Returns true if parsing succeeded and
@@ -36,15 +38,18 @@ namespace audiomix::dsp {
 
             if (j.value("cmd", "") != "compressor.set") return false;
 
-            /* 
-              each field falls back to current value in `out` if absent, so partial updates from Python-side are handled gracefully
-            */
-           out.threshold_db = j.value("threshold", out.threshold_db);
-           out.ratio = j.value("ratio", out.ratio);
-           out.attack_ms = j.value("attack_ms", out.attack_ms);
-           out.release_ms = j.value("release_ms", out.release_ms);
+            
+            //each field falls back to current value in `out` if absent, 
+            // so partial updates from Python-side are handled gracefully
+            out.threshold_db = j.value("threshold", out.threshold_db);
+            out.ratio = j.value("ratio", out.ratio);
+            out.attack_ms = j.value("attack_ms", out.attack_ms);
+            out.release_ms = j.value("release_ms", out.release_ms);
+            out.knee_db = j.value("knee_db", out.knee_db);
+            out.makeup_db = j.value("makeup_db", out.makeup_db);
+            out.mix = j.value("mix", out.mix);
 
-           return true;
+            return true;
         } catch (...) {
             return false;
         }

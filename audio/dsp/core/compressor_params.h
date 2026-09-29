@@ -1,4 +1,3 @@
-// audiomix
 // AudioMIX
 // audio/dsp/core/compressor_params.h
 //
