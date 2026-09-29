@@ -39,7 +39,7 @@ DEFAULTS = {
     "threshold": -18.0,
     "ratio": 4.0,
     "attack_ms": 10.0,
-    "release_ms": 80.0,
+    "release_ms": 100.0,
     "knee_db": 6.0,
     "makeup_db": 0.0,
     "mix": 1.0,

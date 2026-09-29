@@ -43,6 +43,7 @@ SAFE_MODE_ALLOWLIST = {
     "gain.py",
     "clipper.py",
     "sampler.py",
+    "compressor.py",
 }
 
 # Enable persistent shell history
