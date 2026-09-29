@@ -49,6 +49,8 @@ Most DAWs are built for the studio. Most live-coding tools are not built for per
 
 ## Quick start
 
+![AudioMIX Current State](docs/current_state.png)
+
 ### Prerequisites
 
 - **Python 3.11** (recommended; see `requirements.txt` — librosa targets ≤ 3.11)
