@@ -45,7 +45,7 @@ rich                 # Colorful logging, pretty tracebacks
 pytest               # Testing framework
 
 # --- API / WebSocket ---
-fastapi>=0.141.1
+fastapi>=0.142.2
 uvicorn[standard]>=0.53.0
 websockets>=17.1
 pydantic>=2.13.5
