@@ -204,6 +204,8 @@ class WSMessageType(str, Enum):
     # receiving connection
     PING = "ping"
     PONG = "pong"
+    # engine finished its initial (SAFE_MODE) boot, runtime is up
+    ENGINE_READY = "engine_ready"
 
 class WSMessage(BaseModel):
     """
