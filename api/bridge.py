@@ -65,6 +65,8 @@ class AudioMIXBridge:
         self._runtime_process: Optional[asyncio.subprocess.Process] = None
         self._running: bool = False
         self._safe_mode: bool = True
+        # True once the initial (SAFE_MODE) boot has completed
+        self._ready: bool = False
         self._output_task: Optional[asyncio.Task] = None
         self._output_queue: asyncio.Queue[str] = asyncio.Queue()
 

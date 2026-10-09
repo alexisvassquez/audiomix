@@ -131,13 +131,13 @@ async def shell_websocket(websocket: WebSocket) -> None:
     # (bridge._broadcast_engine_ready reaches this
     # client through the callback we just registered). 
     # Neither path can drop the signal; the only overlap is a harmless duplicate.
-    if bridge.is_ready:
-        try:
-            await websocket.send_text(bridge.make_engine_ready_message())
-        except Exception as e:
-            logger.error(f"Failed to send engine_ready to {client_id}: {e}")
+    try: 
+        if bridge.is_ready:
+            try:
+                await websocket.send_text(bridge.make_engine_ready_message())
+            except Exception as e:
+                logger.error(f"Failed to send engine_ready to {client_id}: {e}")
 
-    try:
         while True:
             # Wait for a message from Electron client
             raw = await websocket.receive_text()
@@ -174,10 +174,8 @@ async def shell_websocket(websocket: WebSocket) -> None:
                         message.payload.get("branch", "live")
                     ),
                 )
-
                 # Send to runtime via bridge
                 result = await bridge.send_command(request)
-
                 # Push result back to this client
                 response = WSMessage(
                     type=WSMessageType.SHELL_OUTPUT,
