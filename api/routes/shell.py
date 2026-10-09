@@ -123,6 +123,20 @@ async def shell_websocket(websocket: WebSocket) -> None:
 
     bridge.register_ws_client(send_to_client)
 
+    # Tell the client whether the engine is already up.
+    # Order matters: register the callback FIRST, then check is_ready.
+    # There is no await between the register call and this check, so no
+    # other coroutine can interleave.
+    # This means either boot already finished (is_ready True -> we send engine_ready directly here) or it finishes later 
+    # (bridge._broadcast_engine_ready reaches this
+    # client through the callback we just registered). 
+    # Neither path can drop the signal; the only overlap is a harmless duplicate.
+    if bridge.is_ready:
+        try:
+            await websocket.send_text(bridge.make_engine_ready_message())
+        except Exception as e:
+            logger.error(f"Failed to send engine_ready to {client_id}: {e}")
+
     try:
         while True:
             # Wait for a message from Electron client
