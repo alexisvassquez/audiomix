@@ -127,19 +127,11 @@ class AudioMIXBridge:
         # initializing (check below)
         await self._wait_for_runtime_ready(timeout=60.0)
 
-    async def _ensure_full_mode(self) -> None:
-        """
-        Escalates the runtime subproc to full mode if it's currently
-        running in SAFE_MODE. Called on entering LIVE mode - live coding assumes the full module set is available.
-        """
-        if self._running and not self._safe_mode:
-            return
-
-        if self._running and self._safe_mode:
-            logger.info("Escalating runtime from SAFE_MODE to full mode...")
-            await self.shutdown()
-
-        await self.start(safe=False)
+        # Boot is complete. Flip the flag and tell any clients that
+        # connected while application was still starting up.
+        # Engine-ready race condition fix.
+        self._ready = True
+        await self._broadcast_engine_ready()
 
     async def _wait_for_runtime_ready(self, timeout: float = 10.0) -> None:
         """
@@ -200,7 +192,8 @@ class AudioMIXBridge:
         the already-running process rather than respawning it, so there is no
         state loss and resuming is instant.
         """
-        await self._ensure_full_mode()
+        if not self._running:
+            await self.start()
 
         self._session.audioscript_branch = AudioScriptBranch.LIVE.value
         self._session.last_event = "mode:live_resumed"
@@ -442,6 +435,57 @@ class AudioMIXBridge:
         if callback in self._ws_callbacks:
             self._ws_callbacks.remove(callback)
         logger.info(f"WS client unregistered - {len(self._ws_callbacks)} remaining")
+
+    # Engine Readiness
+    @property
+    def is_ready(self) -> bool:
+        """
+        True once the runtime has finished its initial (SAFE_MODE) boot.
+        Read by the WS /shell route at connect time to tell a freshly
+        connected client whether the engine is already up, and consumed
+        by the UI to gate controls that need a live runtime.
+        """
+        return self._ready
+
+    def make_engine_ready_message(self) -> str:
+        """
+        Build the ENGINE_READY envelope as a JSON string.
+        Centralized so the boot-time broadcast and the connect-time
+        direct send (in shell.py) always emit exactly the same shape.
+        """
+        from api.models import WSMessage, WSMessageType
+
+        return WSMessage(
+            type=WSMessageType.ENGINE_READY,
+            payload={"ready": True},
+        ).model_dump_json()
+
+    async def _broadcast_engine_ready(self) -> None:
+        """
+        Tell every connected WebSocket client that the engine has
+        finished booting.
+        Fired exactly once, from start(), the moment the initial runtime boot
+        completes.
+        This closes the race where a client connects while the runtime is still
+        starting and would otherwise never hear that it came online.
+        """
+        if not self._ws_callbacks:
+            return
+
+        message_json = self.make_engine_ready_message()
+
+        results = await asyncio.gather(
+            *[cb(message_json) for cb in self._ws_callbacks],
+            return_exceptions=True
+        )
+
+        # Clean up any dead callbacks, same as _notify_clients below
+        dead = [
+            cb for cb, result in zip(self._ws_callbacks, results)
+            if isinstance(result, Exception)
+        ]
+        for cb in dead:
+            self.unregister_ws_client(cb)
 
     async def _notify_clients(self) -> None:
         """
