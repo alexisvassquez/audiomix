@@ -44,6 +44,7 @@ SAFE_MODE_ALLOWLIST = {
     "clipper.py",
     "sampler.py",
     "compressor.py",
+    "eq.py",
 }
 
 # Enable persistent shell history
