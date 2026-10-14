@@ -10,6 +10,7 @@
 #include <atomic>
 #include <string>
 #include <mutex>
+#include <nlohmann/json.hpp>
 
 // DSP Core + Modules
 #include "main.h"
@@ -66,11 +67,17 @@ struct AudioState {
     std::vector<float> outL, outR;
 };
 
-// Helpers
-static inline bool containsCmd(const std::string& line, const char* cmd) {
-    // simple match for: "cmd":"<cmd>"
-    const std::string needle = std::string("\"cmd\":\"") + cmd + "\"";
-    return line.find(needle) != std::string::npos;
+// Parse the "cmd" field from an NDJSON control line.
+// Returns "" on malformed JSON or a missing cmd (falls through to
+// unknown_command).
+// Robust to whitespace and key order, unlike a raw substring match.
+static inline std::string parseCmd(const std::string& line) {
+    try {
+        const auto j = nlohmann::json::parse(line);
+        return j.value("cmd", std::string{});
+    } catch (...) {
+        return std::string{};
+    }
 }
 
 /*
@@ -87,16 +94,17 @@ static void controlLoop(ControlBus* bus) {
         // TEMP DEBUG
         std::cerr << "[controlLoop] received: " << line << std::endl;
 
+        const std::string cmd = parseCmd(line);
+
         // ping/pong
-        if (containsCmd(line, "ping")) {
+        if (cmd == "ping") {
             std::cout << "{\"cmd\":\"pong\"}" << std::endl;
             continue;
         }
 
         // Branches
-        // Apply EQ from the control thread (off audio thread)
         // eq.set
-        if (containsCmd(line, "eq.set")) {
+        if (cmd == "eq.set") {
             EqParams parsed;
             if (!parseEqSetLine(line, parsed)) {
                 // parse JSON
@@ -116,7 +124,7 @@ static void controlLoop(ControlBus* bus) {
         }
 
         // compressor.set
-        if (containsCmd(line, "compressor.set")) {
+        if (cmd == "compressor.set") {
             CompressorParams parsed;
             if (!parseCompressorSetLine(line, parsed)) {
                 std::cout << "{\"cmd\":\"error\",\"error\":\"bad_compressor_payload\"}" << std::endl;
@@ -128,7 +136,7 @@ static void controlLoop(ControlBus* bus) {
         }
 
         // gain.set
-        if (containsCmd(line, "gain.set")) {
+        if (cmd == "gain.set") {
             float gainDb = 0.0f;
             if (!parseGainSetLine(line, gainDb)) {
                 std::cout << "{\"cmd\":\"error\",\"error\":\"bad_gain_payload\"}" << std::endl;
@@ -140,7 +148,7 @@ static void controlLoop(ControlBus* bus) {
         }
 
         // clipper.set
-        if (containsCmd(line, "clipper.set")) {
+        if (cmd == "clipper.set") {
             ClipperParsedFields fields;
             if (!parseClipperSetLine(line, fields)) {
                 std::cout << "{\"cmd\":\"error\",\"error\":\"bad_clipper_payload\"}" << std::endl;
