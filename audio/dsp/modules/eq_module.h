@@ -1,4 +1,3 @@
-// audiomix
 // AudioMIX
 // audio/dsp/modules/eq_module.h
 //
