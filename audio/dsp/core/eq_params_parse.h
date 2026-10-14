@@ -1,4 +1,3 @@
-// audiomix
 // AudioMIX
 // audio/dsp/core/eq_params_parse.h
 //
