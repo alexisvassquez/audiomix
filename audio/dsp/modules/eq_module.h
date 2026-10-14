@@ -94,7 +94,7 @@ namespace audiomix::dsp {
         pkt.sampleRate = sr;
         pkt.preampTarget = dbToLinear(params.preamp_db);
 
-        const int smoothSamples = std::max(1, static_cast<int>(std::round(smoothMs * 0.001f) * sr));
+        const int smoothSamples = std::max(1, static_cast<int>(std::round(smoothMs * 0.001f * sr)));
         pkt.smoothSamples = smoothSamples;
 
         for (int i = 0; i < EqParams::kMaxBands; ++i) {
