@@ -48,7 +48,7 @@ pytest               # Testing framework
 fastapi>=0.143.0
 uvicorn[standard]>=0.54.0
 websockets>=17.2
-pydantic>=2.14.0
+pydantic>=2.14.1
 
 # --- Security ---
 python-dotenv
