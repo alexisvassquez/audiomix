@@ -49,7 +49,7 @@ Most DAWs are built for the studio. Most live-coding tools are not built for per
 
 ## Quick start
 
-![AudioMIX Current State](docs/current_state.png)
+![AudioMIX Current State](docs/Screenshot_99.png)
 
 ### Prerequisites
 
