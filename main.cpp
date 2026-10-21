@@ -32,6 +32,7 @@ struct ControlBus {
     CompressorModule* compressor = nullptr;
     GainModule* gain = nullptr;
     ClipperModule* clipper = nullptr;
+    SamplePlayer* player = nullptr;
 
     // latest raw EQ command line received
     // control thread writes under mutex; audio thread copies when signaled
@@ -62,6 +63,7 @@ struct AudioState {
 
     // control plane hook
     ControlBus* control = nullptr;
+    SamplePlayer player;
 
     std::vector<float> inL, inR;
     std::vector<float> outL, outR;
@@ -164,6 +166,31 @@ static void controlLoop(ControlBus* bus) {
             continue;
         }
 
+        // clip.play
+        // decode + mix a WAV through the chain
+        if (cmd == "clip.play") {
+            try {
+                const auto j = nlohmann::json::parse(line);
+                const auto& p = j.at("payload");
+                const std::string path = p.value("path", std::string{});
+                const float gain = p.value("gain", 1.0f);
+                const bool loop = p.value("loop", false);
+                const bool ok = !path.empty() && bus->player && bus->player->play(path, gain, loop, 44100.0);
+                std::cout << (ok ? "{\"cmd\":\"ack\",\"ack\":\"clip.play\"}" : "{\"cmd\":\"error\",\"error\":\"clip_load_failed\"}") << std::endl;
+            } catch (...) {
+                std::cout << "{\"cmd\":\"error\",\"error\":\"bad_clip_payload\"}" << std::endl;
+            }
+            continue;
+        }
+
+        // clip.stop
+        // silence all voices
+        if (cmd == "clip.stop") {
+            if (bus->player) bus->player->stopAll();
+            std::cout << "{\"cmd\":\"ack\",\"ack\":\"clip.stop\"}" << std::endl;
+            continue;
+        }
+
         // unknown command
         std::cout << "{\"cmd\":\"error\",\"error\":\"unknown_command\"}" << std::endl;
     }
@@ -198,6 +225,9 @@ static int audioCallback(const void* inputBuffer, void* outputBuffer, unsigned l
         std::fill(state->inL.begin(), state->inL.begin() + framesPerBuffer, 0.0f);
         std::fill(state->inR.begin(), state->inR.begin() + framesPerBuffer, 0.0f);
     }
+
+    // Mix triggered clips on top of the input so they run through the chain
+    state->player.mixInto(state->inL.data(), state->inR.data(), static_cast<unsigned int>(framesPerBuffer));
 
     // Process through the DSP chain
     // stereo wrapper - internally uses processMulti
@@ -239,6 +269,7 @@ int main(int argc, char* argv[])
     state.sampleRate = 44100.0;
     state.maxBlockSize = 512;
     state.control = &control;
+    control.player = &state.player;
 
     state.inL.resize(state.maxBlockSize, 0.0f);
     state.inR.resize(state.maxBlockSize, 0.0f);

@@ -1,6 +1,6 @@
 // AudioMIX
 // audio/dsp/audiomix_dsp.h
-
+//
 /*
   Umbrella header for AudioMIX DSP
   core and module includes.
@@ -29,6 +29,8 @@
 #include "audio/dsp/core/compressor_params_parse.h"
 #include "audio/dsp/core/gain_params_parse.h"
 #include "audio/dsp/core/clipper_params_parse.h"
+
+#include "audio/dsp/core/sample_player.h"
 
 // control plane
 #include "audio/dsp/core/control/param_ids.h"
