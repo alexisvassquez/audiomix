@@ -7,8 +7,10 @@
 #include "dr_wav.h"
 #include "sample_player.h"
 
+#include <cmath>
+
 namespace audiomix::dsp {
-    bool SamplePlayer::play(const std::string& path, float gain, bool loop, double /*engineSr*/) {
+    bool SamplePlayer::play(const std::string& path, float gain, bool loop, double engineSr) {
         drwav wav;
         if (!drwav_init_file(&wav, path.c_str(), nullptr)) return false;
 
@@ -22,20 +24,40 @@ namespace audiomix::dsp {
         if (read == 0 || ch == 0) return false;
 
         auto data = std::make_shared<SampleData>();
-        data->sampleRate = static_cast<int>(sr);
-        data->frames = read;
-        data->L.resize(read);
-        data->R.resize(read);
+
+        // de-interleave to planar L/R at the file's native rate
+        std::vector<float> nativeL(read), nativeR(read);
         for (uint64_t i = 0; i < read; ++i) {
             const float l = inter[i * ch + 0];
             const float r = (ch > 1) ? inter[i * ch + 1] : l;
-            data->L[i] = l;
-            data->R[i] = r;
+            nativeL[i] = l;
+            nativeR[i] = r;
         } 
-        // note: assumes the wav's rate == engine rate (44100), as defined in
-        // main.cpp
-        // For now, it feeds it 44.1k files or plays off-speed.
-        // TODO: Resampling.
+
+        // Resampling.
+        // Resample to the engine rate
+        // linear interp, done once off the audio thread
+        if (sr > 0 && engineSr > 0.0 && static_cast<double>(sr) != engineSr) {
+            const double ratio = engineSr / static_cast<double>(sr);
+            const uint64_t outFrames = static_cast<uint64_t>(std::llround(static_cast<double>(read) * ratio));
+            data->L.resize(outFrames);
+            data->R.resize(outFrames);
+            for (uint64_t i = 0; i < outFrames; ++i) {
+                const double srcPos = static_cast<double>(i) / ratio;
+                const uint64_t i0 = static_cast<uint64_t>(srcPos);
+                const uint64_t i1 = (i0 + 1 < read) ? (i0 + 1) : (read - 1);
+                const float frac = static_cast<float>(srcPos - static_cast<double>(i0));
+                data->L[i] = nativeL[i0] + (nativeL[i1] - nativeL[i0]) * frac;
+                data->R[i] = nativeR[i0] + (nativeR[i1] - nativeR[i0]) * frac;
+            }
+            data->frames = outFrames;
+            data->sampleRate = static_cast<int>(engineSr);
+        } else {
+            data->L = std::move(nativeL);
+            data->R = std::move(nativeR);
+            data->frames = read;
+            data->sampleRate = static_cast<int>(sr);
+        }
 
         Voice v;
         v.data = std::move(data);
